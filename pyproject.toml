@@ -1,0 +1,77 @@
+[project]
+name = "python-json-api-server"
+version = "1.0.0"
+description = "JSONPlaceholder-compatible REST API — FastAPI + SQLAlchemy + Redis"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [
+    { name = "Dang Khoa", email = "i.am@dangkhoa.dev" },
+]
+keywords = ["fastapi", "sqlalchemy", "rest-api", "jsonplaceholder", "sqlite", "redis", "async"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Framework :: AsyncIO",
+    "Framework :: FastAPI",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Internet :: WWW/HTTP :: HTTP Servers",
+]
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.34.0",
+    "sqlalchemy[asyncio]>=2.0.0",
+    "aiosqlite>=0.20.0",
+    "redis[hiredis]>=5.0.0",
+    "argon2-cffi>=23.1.0",
+    "pydantic-settings>=2.0.0",
+    "httpx>=0.27.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/dangkhoa2016/Python-JSON-API-Server"
+Repository = "https://github.com/dangkhoa2016/Python-JSON-API-Server"
+Issues = "https://github.com/dangkhoa2016/Python-JSON-API-Server/issues"
+Documentation = "https://github.com/dangkhoa2016/Python-JSON-API-Server#readme"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
+    "pytest-cov>=5.0.0",
+    "pytest-watch>=4.2.0",
+    "python-dotenv>=1.0.0",
+    "ruff>=0.12.0",
+    "mypy>=1.16.0",
+]
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "--cov=app --cov-report=term-missing"
+
+[tool.coverage.run]
+concurrency = ["greenlet"]
+
+[tool.coverage.report]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "ASYNC"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.mypy]
+python_version = "3.11"
+check_untyped_defs = true
+no_implicit_optional = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+exclude = ["tests/"]

@@ -1,0 +1,59 @@
+# ── Python ──────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# ── Distribution / Packaging ───────────────────────────
+dist/
+build/
+*.egg-info/
+*.egg
+
+# ── Virtual environments ───────────────────────────────
+.venv/
+venv/
+ENV/
+
+# ── Environment / Secrets ──────────────────────────────
+.env
+
+# ── SQLite ─────────────────────────────────────────────
+*.db
+*.db-shm
+*.db-wal
+
+# ── Runtime data ───────────────────────────────────────
+storage/*
+
+# ── Temp / scratch files ───────────────────────────────
+temp/
+
+# ── Testing / Coverage ─────────────────────────────────
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+
+# ── IDE / Editor ───────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.kate-swp
+.sublime-*
+
+# ── OS ─────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ── Logs ───────────────────────────────────────────────
+*.log
+
+# ── Git worktrees ──────────────────────────────────────
+.worktrees/
+
+# ── Tool-specific ──────────────────────────────────────
+.superpowers/
