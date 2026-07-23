@@ -13,8 +13,10 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.pool import StaticPool
 
+from app.database import get_db
 from app.models import Album, Base, Comment, Photo, Post, Setting, Todo, User
 from app.routes.public import router as public_router
+from app.routes.resources import router as resources_router
 
 
 @pytest_asyncio.fixture
@@ -115,11 +117,27 @@ async def seed_test_data(test_engine: Any) -> AsyncGenerator[AsyncSession, None]
 
 
 @pytest_asyncio.fixture
-async def client():
+async def test_app(test_engine: Any, seed_test_data: AsyncSession) -> Any:
     app = FastAPI(title="test-app", lifespan=None)
+    session_factory = async_sessionmaker(test_engine, class_=AsyncSession, expire_on_commit=False)
+
+    async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
+        async with session_factory() as session:
+            yield session
+
+    app.dependency_overrides[get_db] = override_get_db
+    from app.services.runtime_config import RateLimitConfig
+
     app.state.redis_client = None
-    app.state.rate_limit_config = None
+    app.state.rate_limit_config = RateLimitConfig(enabled=True, max_requests=100, window_ms=60000)
     app.include_router(public_router)
-    transport = httpx.ASGITransport(app=app)
+    app.include_router(resources_router)
+    yield app
+    app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture
+async def client(test_app: Any) -> AsyncGenerator[httpx.AsyncClient, None]:
+    transport = httpx.ASGITransport(app=test_app)
     async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as c:
         yield c
