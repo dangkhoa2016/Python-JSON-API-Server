@@ -17,6 +17,7 @@ from app.database import get_db
 from app.models import Album, Base, Comment, Photo, Post, Setting, Todo, User
 from app.routes.public import router as public_router
 from app.routes.health import router as health_router
+from app.routes.admin import router as admin_router
 from app.routes.info import router as info_router
 from app.routes.resources import router as resources_router
 
@@ -135,6 +136,7 @@ async def test_app(test_engine: Any, seed_test_data: AsyncSession) -> Any:
     app.state.db_engine = test_engine
     app.include_router(public_router)
     app.include_router(health_router)
+    app.include_router(admin_router)
     app.include_router(info_router)
     app.include_router(resources_router)
     yield app
