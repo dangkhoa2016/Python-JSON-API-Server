@@ -1,9 +1,12 @@
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Generator
 from datetime import UTC, datetime
 from typing import Any
+from unittest.mock import AsyncMock, patch
 
 import httpx
+import pytest
 import pytest_asyncio
+import sqlalchemy as sa
 from argon2 import PasswordHasher
 from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import (
@@ -14,12 +17,37 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.pool import StaticPool
 
 from app.database import get_db
+from app.middleware.trailing_slash import StripTrailingSlashMiddleware
 from app.models import Album, Base, Comment, Photo, Post, Setting, Todo, User
-from app.routes.public import router as public_router
-from app.routes.health import router as health_router
 from app.routes.admin import router as admin_router
+from app.routes.health import router as health_router
 from app.routes.info import router as info_router
+from app.routes.public import router as public_router
 from app.routes.resources import router as resources_router
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def _reset_settings_cache() -> AsyncGenerator[None, None]:
+    from app.services.runtime_settings import reset_settings_cache
+
+    reset_settings_cache()
+    yield
+    reset_settings_cache()
+
+
+@pytest.fixture(autouse=True)
+def _restore_global_state() -> Generator[None, None]:
+    from app.main import engine, rate_limit_config
+
+    saved_config = {
+        "enabled": rate_limit_config.enabled,
+        "max": rate_limit_config.max_requests,
+        "windowMs": rate_limit_config.window_ms,
+    }
+    saved_echo = engine.echo
+    yield
+    rate_limit_config.update(saved_config)
+    engine.echo = saved_echo
 
 
 @pytest_asyncio.fixture
@@ -29,6 +57,13 @@ async def test_engine() -> AsyncGenerator[Any, None]:
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
+
+    @sa.event.listens_for(engine.sync_engine, "connect")
+    def _set_sqlite_foreign_keys(dbapi_connection: Any, connection_record: Any) -> None:
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield engine
@@ -49,12 +84,34 @@ async def seed_test_data(test_engine: Any) -> AsyncGenerator[AsyncSession, None]
     session_factory = async_sessionmaker(test_engine, class_=AsyncSession, expire_on_commit=False)
     async with session_factory() as session:
         users = [
-            User(id=1, name="Leanne Graham", username="Bret", email="Sincere@april.biz", phone="1-770-736-8031", website="hildegard.org"),
-            User(id=2, name="Ervin Howell", username="Antonette", email="Shanna@melissa.tv", phone="010-692-6593", website="anastasia.net"),
-            User(id=3, name="Clementine Bauch", username="Samantha", email="Nathan@yesenia.net", phone="1-463-123-4447", website="ramiro.info"),
+            User(
+                id=1,
+                name="Leanne Graham",
+                username="Bret",
+                email="Sincere@april.biz",
+                phone="1-770-736-8031",
+                website="hildegard.org",
+            ),
+            User(
+                id=2,
+                name="Ervin Howell",
+                username="Antonette",
+                email="Shanna@melissa.tv",
+                phone="010-692-6593",
+                website="anastasia.net",
+            ),
+            User(
+                id=3,
+                name="Clementine Bauch",
+                username="Samantha",
+                email="Nathan@yesenia.net",
+                phone="1-463-123-4447",
+                website="ramiro.info",
+            ),
         ]
         for u in users:
             session.add(u)
+        await session.flush()
         posts = [
             Post(id=1, userId=1, title="sunt aut facere repellat", body="quia et suscipit"),
             Post(id=2, userId=1, title="qui est esse", body="est rerum tempore"),
@@ -64,30 +121,86 @@ async def seed_test_data(test_engine: Any) -> AsyncGenerator[AsyncSession, None]
         ]
         for p in posts:
             session.add(p)
+        await session.flush()
         comments = [
-            Comment(id=1, postId=1, name="id labore ex", email="Eliseo@gardner.biz", body="laudantium enim"),
-            Comment(id=2, postId=1, name="quo vero reiciendis", email="Jayne_Kuhic@sydney.com", body="est natus"),
-            Comment(id=3, postId=2, name="odio iusto", email="Lucio_Hettinger@annie.ca", body="quo fugit"),
-            Comment(id=4, postId=3, name="alias/placeat", email="Conrad@adams.info", body="molestiae"),
-            Comment(id=5, postId=5, name="nesciunt omnis", email="Telly_Hoeger@billy.biz", body="vitae"),
+            Comment(
+                id=1,
+                postId=1,
+                name="id labore ex",
+                email="Eliseo@gardner.biz",
+                body="laudantium enim",
+            ),
+            Comment(
+                id=2,
+                postId=1,
+                name="quo vero reiciendis",
+                email="Jayne_Kuhic@sydney.com",
+                body="est natus",
+            ),
+            Comment(
+                id=3,
+                postId=2,
+                name="odio iusto",
+                email="Lucio_Hettinger@annie.ca",
+                body="quo fugit",
+            ),
+            Comment(
+                id=4, postId=3, name="alias/placeat", email="Conrad@adams.info", body="molestiae"
+            ),
+            Comment(
+                id=5, postId=5, name="nesciunt omnis", email="Telly_Hoeger@billy.biz", body="vitae"
+            ),
         ]
         for c in comments:
             session.add(c)
+        await session.flush()
         albums = [
             Album(id=1, userId=1, title="quidem molestiae"),
             Album(id=2, userId=2, title="sunt qui repudiandae"),
         ]
         for a in albums:
             session.add(a)
+        await session.flush()
         photos = [
-            Photo(id=1, albumId=1, title="accusamus beatae", url="https://via.placeholder.com/600/92c952", thumbnailUrl="https://via.placeholder.com/150/92c952"),
-            Photo(id=2, albumId=1, title="reprehenderit est", url="https://via.placeholder.com/600/771774", thumbnailUrl="https://via.placeholder.com/150/771774"),
-            Photo(id=3, albumId=2, title="officia porro", url="https://via.placeholder.com/600/24f355", thumbnailUrl="https://via.placeholder.com/150/24f355"),
-            Photo(id=4, albumId=2, title="culpa odio", url="https://via.placeholder.com/600/d32776", thumbnailUrl="https://via.placeholder.com/150/d32776"),
-            Photo(id=5, albumId=1, title="natus impedit", url="https://via.placeholder.com/600/56a8c2", thumbnailUrl="https://via.placeholder.com/150/56a8c2"),
+            Photo(
+                id=1,
+                albumId=1,
+                title="accusamus beatae",
+                url="https://via.placeholder.com/600/92c952",
+                thumbnailUrl="https://via.placeholder.com/150/92c952",
+            ),
+            Photo(
+                id=2,
+                albumId=1,
+                title="reprehenderit est",
+                url="https://via.placeholder.com/600/771774",
+                thumbnailUrl="https://via.placeholder.com/150/771774",
+            ),
+            Photo(
+                id=3,
+                albumId=2,
+                title="officia porro",
+                url="https://via.placeholder.com/600/24f355",
+                thumbnailUrl="https://via.placeholder.com/150/24f355",
+            ),
+            Photo(
+                id=4,
+                albumId=2,
+                title="culpa odio",
+                url="https://via.placeholder.com/600/d32776",
+                thumbnailUrl="https://via.placeholder.com/150/d32776",
+            ),
+            Photo(
+                id=5,
+                albumId=1,
+                title="natus impedit",
+                url="https://via.placeholder.com/600/56a8c2",
+                thumbnailUrl="https://via.placeholder.com/150/56a8c2",
+            ),
         ]
         for ph in photos:
             session.add(ph)
+        await session.flush()
         todos = [
             Todo(id=1, userId=1, title="delectus aut autem", completed=0),
             Todo(id=2, userId=1, title="quis ut nam facilis", completed=1),
@@ -97,6 +210,7 @@ async def seed_test_data(test_engine: Any) -> AsyncGenerator[AsyncSession, None]
         ]
         for t in todos:
             session.add(t)
+        await session.flush()
         ph = PasswordHasher()
         now = datetime.now(UTC).isoformat()
         admin_key_hash = ph.hash("test-admin-key")
@@ -104,19 +218,63 @@ async def seed_test_data(test_engine: Any) -> AsyncGenerator[AsyncSession, None]
             Setting(key="ADMIN_KEY", value=admin_key_hash, description="Admin key", updated_at=now),
             Setting(key="APP_ENV", value="test", description="Environment", updated_at=now),
             Setting(key="PORT", value="3000", description="Port", updated_at=now),
-            Setting(key="RATE_LIMIT_ENABLED", value="true", description="Rate limit enabled", updated_at=now),
-            Setting(key="RATE_LIMIT_MAX", value="100", description="Rate limit max requests", updated_at=now),
-            Setting(key="RATE_LIMIT_WINDOW_MS", value="60000", description="Rate limit window ms", updated_at=now),
+            Setting(
+                key="RATE_LIMIT_ENABLED",
+                value="true",
+                description="Rate limit enabled",
+                updated_at=now,
+            ),
+            Setting(
+                key="RATE_LIMIT_MAX",
+                value="100",
+                description="Rate limit max requests",
+                updated_at=now,
+            ),
+            Setting(
+                key="RATE_LIMIT_WINDOW_MS",
+                value="60000",
+                description="Rate limit window ms",
+                updated_at=now,
+            ),
             Setting(key="REDIS_HOST", value="127.0.0.1", description="Redis host", updated_at=now),
             Setting(key="REDIS_PORT", value="6379", description="Redis port", updated_at=now),
             Setting(key="REDIS_DB", value="0", description="Redis db", updated_at=now),
-            Setting(key="REDIS_PASSWORD", value="placeholder", description="Redis password", updated_at=now),
+            Setting(
+                key="REDIS_PASSWORD",
+                value="placeholder",
+                description="Redis password",
+                updated_at=now,
+            ),
             Setting(key="REDIS_URL", value="", description="Redis URL", updated_at=now),
         ]
         for s in settings_data:
             session.add(s)
         await session.commit()
         yield session
+
+
+@pytest_asyncio.fixture
+async def fresh_database() -> AsyncGenerator[Any, None]:
+    engine = create_async_engine(
+        "sqlite+aiosqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    mock_redis = AsyncMock()
+    mock_redis.connected = False
+    mock_redis.connect = AsyncMock()
+    mock_redis.quit = AsyncMock()
+    with (
+        patch("app.main.engine", engine),
+        patch("app.main.async_session", session_factory),
+        patch("app.main.init_db", new_callable=AsyncMock),
+        patch("app.main.redis_client", mock_redis),
+    ):
+        yield
+    await engine.dispose()
 
 
 @pytest_asyncio.fixture
@@ -134,10 +292,11 @@ async def test_app(test_engine: Any, seed_test_data: AsyncSession) -> Any:
     app.state.redis_client = None
     app.state.rate_limit_config = RateLimitConfig(enabled=True, max_requests=100, window_ms=60000)
     app.state.db_engine = test_engine
+    app.add_middleware(StripTrailingSlashMiddleware)
     app.include_router(public_router)
     app.include_router(health_router)
-    app.include_router(admin_router)
     app.include_router(info_router)
+    app.include_router(admin_router)
     app.include_router(resources_router)
     yield app
     app.dependency_overrides.clear()

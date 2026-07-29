@@ -57,6 +57,7 @@ addopts = "--cov=app --cov-report=term-missing"
 concurrency = ["greenlet"]
 
 [tool.coverage.report]
+fail_under = 100
 
 [tool.ruff]
 target-version = "py311"

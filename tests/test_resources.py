@@ -27,6 +27,22 @@ class TestListUsers:
 
 
 class TestListPostsDefaultPageSize:
+    async def test_uses_db_setting(self, client: httpx.AsyncClient, test_db: AsyncSession) -> None:
+        now = datetime.now(UTC).isoformat()
+        test_db.add(
+            Setting(
+                key="DEFAULT_PAGE_SIZE",
+                value="2",
+                description="Default page size",
+                updated_at=now,
+            )
+        )
+        await test_db.commit()
+
+        resp = await client.get("/api/posts")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data) == 2
 
     async def test_falls_back_to_config_when_row_missing(self, client: httpx.AsyncClient) -> None:
         resp = await client.get("/api/posts")
@@ -366,3 +382,47 @@ class TestUnknownTable:
         assert resp.status_code == 404
 
 
+class TestTrailingSlash:
+    async def test_list_users_with_trailing_slash(self, client: httpx.AsyncClient) -> None:
+        resp = await client.get("/api/users/")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert isinstance(data, list)
+        assert len(data) == 3
+
+    async def test_trailing_slash_returns_same_data(self, client: httpx.AsyncClient) -> None:
+        resp_slash = await client.get("/api/users/")
+        resp_plain = await client.get("/api/users")
+        assert resp_slash.status_code == 200
+        assert resp_slash.json() == resp_plain.json()
+
+    async def test_get_resource_with_trailing_slash(self, client: httpx.AsyncClient) -> None:
+        resp = await client.get("/api/users/1/")
+        assert resp.status_code == 200
+        assert resp.json()["id"] == 1
+
+    async def test_nested_route_with_trailing_slash(self, client: httpx.AsyncClient) -> None:
+        resp = await client.get("/api/users/1/posts/")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert all(p["userId"] == 1 for p in data)
+
+    async def test_create_with_trailing_slash(self, client: httpx.AsyncClient) -> None:
+        resp = await client.post(
+            "/api/posts/",
+            json={"userId": 1, "title": "Trailing Slash Post", "body": "Post body content"},
+        )
+        assert resp.status_code == 201
+        assert resp.json()["title"] == "Trailing Slash Post"
+
+    async def test_health_with_trailing_slash(self, client: httpx.AsyncClient) -> None:
+        resp = await client.get("/health/")
+        assert resp.status_code == 200
+
+    async def test_api_root_with_trailing_slash(self, client: httpx.AsyncClient) -> None:
+        resp = await client.get("/api/")
+        assert resp.status_code == 200
+
+    async def test_root_path_is_not_stripped(self, client: httpx.AsyncClient) -> None:
+        resp = await client.get("/")
+        assert resp.status_code == 200
