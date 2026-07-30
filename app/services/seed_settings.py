@@ -72,3 +72,27 @@ async def seed_settings(db: AsyncSession, config: Settings = settings) -> int:
     await db.commit()
     print(f"[Seed] Seeded {inserted} settings from environment.")
     return inserted
+
+
+async def set_admin_key(db: AsyncSession, key: str) -> Setting:
+    ph = PasswordHasher()
+    hashed = ph.hash(key)
+    now = datetime.now(UTC).isoformat()
+
+    result = await db.execute(select(Setting).where(Setting.key == "ADMIN_KEY"))
+    row = result.scalar_one_or_none()
+    if row is None:
+        row = Setting(
+            key="ADMIN_KEY",
+            value=hashed,
+            description="Admin authentication key (argon2-hashed on PATCH)",
+            updated_at=now,
+        )
+        db.add(row)
+    else:
+        row.value = hashed
+        row.updated_at = now
+
+    await db.commit()
+    await db.refresh(row)
+    return row

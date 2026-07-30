@@ -11,6 +11,7 @@ Database:
   db:migrate        Create missing tables from SQLAlchemy metadata
   db:seed           Seed data from JSONPlaceholder
   db:seed-settings  Seed default settings
+  db:set-admin-key  Set/rotate ADMIN_KEY in DB (writes .env in development)
   db:setup          Run migrate + seed + seed-settings
 
 Server:
@@ -35,6 +36,10 @@ cmd_db_seed() {
 
 cmd_db_seed_settings() {
   python -m scripts.db_seed_settings
+}
+
+cmd_db_set_admin_key() {
+  python -m scripts.set_admin_key "$@"
 }
 
 cmd_db_setup() {
@@ -79,6 +84,7 @@ case "$command" in
   db:migrate)       cmd_db_migrate ;;
   db:seed)          cmd_db_seed ;;
   db:seed-settings) cmd_db_seed_settings ;;
+  db:set-admin-key) cmd_db_set_admin_key "$@" ;;
   db:setup)         cmd_db_setup ;;
   start)            cmd_start ;;
   prod)             cmd_prod ;;
