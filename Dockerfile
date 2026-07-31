@@ -44,6 +44,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     APP_ENV=production \
     DB_PATH=/app/storage/data.db
 
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:3000/health', timeout=3)"
+
 EXPOSE 3000
 
 VOLUME ["/app/storage"]

@@ -135,6 +135,12 @@ def test_dockerfile_is_multi_stage():
     assert text.count("FROM python:") == 2
 
 
+def test_dockerfile_has_healthcheck():
+    text = Path("Dockerfile").read_text()
+    assert "HEALTHCHECK" in text
+    assert "/health" in text
+
+
 def test_dockerfile_runs_as_non_root():
     text = Path("Dockerfile").read_text()
     assert "USER app" in text
