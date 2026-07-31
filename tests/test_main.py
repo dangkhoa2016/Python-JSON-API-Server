@@ -39,24 +39,11 @@ class TestFreshStartup:
     ) -> None:
         from app.main import lifespan
 
-        with patch("app.main.seed", new_callable=AsyncMock) as seed_mock:
-            async with lifespan(test_app):
-                config = test_app.state.rate_limit_config
-                assert config.enabled is True
-                assert config.max_requests == 100
-                assert config.window_ms == 60000
-        seed_mock.assert_awaited_once()
-
-    async def test_lifespan_tolerates_seed_failure(
-        self, fresh_database: Any, test_app: Any
-    ) -> None:
-        from app.main import lifespan
-
-        with patch(
-            "app.main.seed", new_callable=AsyncMock, side_effect=RuntimeError("seed exploded")
-        ):
-            async with lifespan(test_app):
-                assert test_app.state.rate_limit_config.enabled is True
+        async with lifespan(test_app):
+            config = test_app.state.rate_limit_config
+            assert config.enabled is True
+            assert config.max_requests == 100
+            assert config.window_ms == 60000
 
 
 class TestPoweredByHeaderRemoved:
@@ -78,7 +65,6 @@ class TestLifespan:
     @patch("app.main.load_runtime_settings")
     @patch("app.main.print_banner")
     @patch("app.main.seed_settings", new_callable=AsyncMock)
-    @patch("app.main.seed", new_callable=AsyncMock)
     @patch("app.main.redis_client")
     @patch("app.main.async_session")
     @patch("app.main.engine")
@@ -89,7 +75,6 @@ class TestLifespan:
         mock_engine: MagicMock,
         mock_async_session: MagicMock,
         mock_redis: MagicMock,
-        mock_seed: AsyncMock,
         mock_seed_settings: AsyncMock,
         mock_banner: MagicMock,
         mock_load: MagicMock,
@@ -117,14 +102,12 @@ class TestLifespan:
         async with lifespan(test_app):
             mock_init_db.assert_called_once()
             mock_seed_settings.assert_called_once_with(mock_db)
-            mock_seed.assert_called_once_with(mock_db)
 
         mock_redis.quit.assert_called_once()
 
     @patch("app.main.load_runtime_settings")
     @patch("app.main.print_banner")
     @patch("app.main.seed_settings", new_callable=AsyncMock)
-    @patch("app.main.seed", new_callable=AsyncMock)
     @patch("app.main.redis_client")
     @patch("app.main.async_session")
     @patch("app.main.engine")
@@ -135,7 +118,6 @@ class TestLifespan:
         mock_engine: MagicMock,
         mock_async_session: MagicMock,
         mock_redis: MagicMock,
-        mock_seed: AsyncMock,
         mock_seed_settings: AsyncMock,
         mock_banner: MagicMock,
         mock_load: MagicMock,
@@ -166,7 +148,6 @@ class TestLifespan:
     @patch("app.main.load_runtime_settings")
     @patch("app.main.print_banner")
     @patch("app.main.seed_settings", new_callable=AsyncMock)
-    @patch("app.main.seed", new_callable=AsyncMock)
     @patch("app.main.redis_client")
     @patch("app.main.async_session")
     @patch("app.main.engine")
@@ -177,7 +158,6 @@ class TestLifespan:
         mock_engine: MagicMock,
         mock_async_session: MagicMock,
         mock_redis: MagicMock,
-        mock_seed: AsyncMock,
         mock_seed_settings: AsyncMock,
         mock_banner: MagicMock,
         mock_load: MagicMock,
@@ -209,7 +189,6 @@ class TestLifespan:
     @patch("app.main.load_runtime_settings")
     @patch("app.main.print_banner")
     @patch("app.main.seed_settings", new_callable=AsyncMock)
-    @patch("app.main.seed", new_callable=AsyncMock)
     @patch("app.main.redis_client")
     @patch("app.main.async_session")
     @patch("app.main.engine")
@@ -220,7 +199,6 @@ class TestLifespan:
         mock_engine: MagicMock,
         mock_async_session: MagicMock,
         mock_redis: MagicMock,
-        mock_seed: AsyncMock,
         mock_seed_settings: AsyncMock,
         mock_banner: MagicMock,
         mock_load: MagicMock,
@@ -253,7 +231,6 @@ class TestLifespan:
     @patch("app.main.load_runtime_settings")
     @patch("app.main.print_banner")
     @patch("app.main.seed_settings", new_callable=AsyncMock)
-    @patch("app.main.seed", new_callable=AsyncMock)
     @patch("app.main.redis_client")
     @patch("app.main.async_session")
     @patch("app.main.engine")
@@ -264,7 +241,6 @@ class TestLifespan:
         mock_engine: MagicMock,
         mock_async_session: MagicMock,
         mock_redis: MagicMock,
-        mock_seed: AsyncMock,
         mock_seed_settings: AsyncMock,
         mock_banner: MagicMock,
         mock_load: MagicMock,
@@ -306,7 +282,6 @@ class TestPersistedSettings:
     @patch("app.main.load_runtime_settings")
     @patch("app.main.print_banner")
     @patch("app.main.seed_settings", new_callable=AsyncMock)
-    @patch("app.main.seed", new_callable=AsyncMock)
     @patch("app.main.redis_client")
     @patch("app.main.async_session")
     @patch("app.main.engine")
@@ -317,7 +292,6 @@ class TestPersistedSettings:
         mock_engine: MagicMock,
         mock_async_session: MagicMock,
         mock_redis: MagicMock,
-        mock_seed: AsyncMock,
         mock_seed_settings: AsyncMock,
         mock_banner: MagicMock,
         mock_load: MagicMock,
@@ -358,7 +332,6 @@ class TestPersistedSettings:
     @patch("app.main.load_runtime_settings")
     @patch("app.main.print_banner")
     @patch("app.main.seed_settings", new_callable=AsyncMock)
-    @patch("app.main.seed", new_callable=AsyncMock)
     @patch("app.main.redis_client")
     @patch("app.main.async_session")
     @patch("app.main.engine")
@@ -369,7 +342,6 @@ class TestPersistedSettings:
         mock_engine: MagicMock,
         mock_async_session: MagicMock,
         mock_redis: MagicMock,
-        mock_seed: AsyncMock,
         mock_seed_settings: AsyncMock,
         mock_banner: MagicMock,
         mock_load: MagicMock,
@@ -416,7 +388,6 @@ class TestPersistedSettings:
     @patch("app.main.load_runtime_settings")
     @patch("app.main.print_banner")
     @patch("app.main.seed_settings", new_callable=AsyncMock)
-    @patch("app.main.seed", new_callable=AsyncMock)
     @patch("app.main.redis_client")
     @patch("app.main.async_session")
     @patch("app.main.engine")
@@ -427,7 +398,6 @@ class TestPersistedSettings:
         mock_engine: MagicMock,
         mock_async_session: MagicMock,
         mock_redis: MagicMock,
-        mock_seed: AsyncMock,
         mock_seed_settings: AsyncMock,
         mock_banner: MagicMock,
         mock_load: MagicMock,

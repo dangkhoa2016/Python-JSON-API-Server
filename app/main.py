@@ -20,7 +20,6 @@ from app.routes.public import router as public_router
 from app.routes.resources import router as resources_router
 from app.services.runtime_config import RateLimitConfig
 from app.services.runtime_settings import load_runtime_settings
-from app.services.seed import seed
 from app.services.seed_settings import seed_settings
 
 logger = logging.getLogger(__name__)
@@ -74,11 +73,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             logger.info("[Redis] Connected")
         else:
             logger.warning("[Redis] Unavailable — rate limiting falls back to in-memory")
-
-        try:
-            await seed(db)
-        except Exception:
-            logger.warning("Seeding skipped due to startup error", exc_info=True)
 
     app.state.redis_client = redis_client
     app.state.rate_limit_config = rate_limit_config

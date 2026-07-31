@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     MAX_BODY_SIZE: int = 1048576
     TRUSTED_PROXIES: list[str] = ["127.0.0.1", "::1"]
     SEED_API_BASE_URL: str = "https://jsonplaceholder.typicode.com"
+    SEED_DATA_ON_STARTUP: bool = False
+    SEED_TIMEOUT_SECONDS: float = 60.0
 
     @property
     def rate_limit_window_sec(self) -> int:
