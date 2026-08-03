@@ -474,6 +474,10 @@ Cài đặt được seed từ đối tượng pydantic `Settings` ở lần kh�
 
 Script smoke tạo volume Docker mới mỗi lần chạy, khởi động container, kiểm tra `/health` (30 giây timeout), và dọn dẹp khi thoát.
 
+## Tài liệu
+
+- [Hướng dẫn Deploy lên Modal.com](docs/DEPLOYMENT-ON-MODAL.COM.vi.md)
+
 ## Giấy phép
 
 [MIT](LICENSE)

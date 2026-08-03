@@ -474,6 +474,10 @@ Settings are seeded from the pydantic `Settings` object on first start with a fr
 
 The smoke script creates a fresh Docker volume on every invocation, starts the container, polls the `/health` endpoint (30-second timeout), and cleans up on exit. No prior Docker state is reused.
 
+## Documentation
+
+- [Deploying to Modal.com](docs/DEPLOYMENT-ON-MODAL.COM.md)
+
 ## License
 
 [MIT](LICENSE)
